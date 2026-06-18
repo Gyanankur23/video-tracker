@@ -21,7 +21,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY main.py .
 COPY templates/ ./templates/
-COPY yolov8n.pt .
 
 # Create necessary directories
 RUN mkdir -p models static
