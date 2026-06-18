@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi Object Tracking in Video</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #2d2d2d;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        header {
+            background: #1e1e1e;
+            color: #ffffff;
+            padding: 24px 32px;
+            border-bottom: 1px solid #3d3d3d;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 24px;
+            aspect-ratio: 16/9;
+            border: 1px solid #3d3d3d;
+        }
+
+        #videoFeed {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 14px 32px;
+            font-size: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-primary {
+            background: #007acc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #005a9e;
+        }
+
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+
+        .btn-secondary {
+            background: #3d3d3d;
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background: #4d4d4d;
+        }
+
+        .btn-secondary:active {
+            transform: translateY(1px);
+        }
+
+        .status {
+            text-align: center;
+            padding: 16px;
+            background: #2d2d2d;
+            border-radius: 6px;
+            margin-bottom: 24px;
+            border: 1px solid #3d3d3d;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .status.active {
+            background: #1e3a1e;
+            color: #4caf50;
+            border-color: #2e4a2e;
+        }
+
+        .status.inactive {
+            background: #2d2d2d;
+            color: #888;
+            border-color: #3d3d3d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Multi Object Tracking in Video</h1>
+        </header>
+
+        <div class="content">
+            <div class="status inactive" id="status">
+                Camera inactive
+            </div>
+
+            <div class="video-container">
+                <img id="videoFeed" src="" alt="Video feed">
+            </div>
+
+            <div class="controls">
+                <button class="btn-primary" onclick="startCamera()">Start Camera</button>
+                <button class="btn-secondary" onclick="stopCamera()">Stop Camera</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isStreaming = false;
+
+        function startCamera() {
+            if (isStreaming) return;
+            
+            const videoFeed = document.getElementById('videoFeed');
+            const status = document.getElementById('status');
+            
+            videoFeed.src = '/video_feed';
+            isStreaming = true;
+            status.className = 'status active';
+            status.textContent = 'Camera active - Tracking objects...';
+        }
+
+        function stopCamera() {
+            if (!isStreaming) return;
+            
+            const videoFeed = document.getElementById('videoFeed');
+            const status = document.getElementById('status');
+            
+            videoFeed.src = '';
+            isStreaming = false;
+            status.className = 'status inactive';
+            status.textContent = 'Camera inactive';
+        }
+    </script>
+</body>
+</html>
