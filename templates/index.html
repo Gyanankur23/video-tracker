@@ -139,7 +139,11 @@
             </div>
 
             <div class="video-container">
+                <!-- Keep the image feed to display annotated results -->
                 <img id="videoFeed" src="" alt="Video feed">
+                
+                <!-- Added a hidden video element to process camera data locally -->
+                <video id="hiddenVideo" autoplay playsinline style="display:none;"></video>
             </div>
 
             <div class="controls">
@@ -151,29 +155,117 @@
 
     <script>
         let isStreaming = false;
+        let localStream = null;
+        let animationFrameId = null;
+        
+        // Dynamic base URL targeting your deployed domain automatically
+        const BASE_URL = window.location.origin;
 
-        function startCamera() {
+        async function startCamera() {
             if (isStreaming) return;
             
-            const videoFeed = document.getElementById('videoFeed');
+            const videoElement = document.getElementById('hiddenVideo');
             const status = document.getElementById('status');
             
-            videoFeed.src = '/video_feed';
-            isStreaming = true;
-            status.className = 'status active';
-            status.textContent = 'Camera active - Tracking objects...';
+            try {
+                // Request webcam stream natively in the user's browser
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480, frameRate: { max: 15 } } 
+                });
+                
+                videoElement.srcObject = localStream;
+                isStreaming = true;
+                status.className = 'status active';
+                status.textContent = 'Camera active - Tracking objects...';
+                
+                // Start sending frames to Render
+                sendFramesLoop();
+                
+            } catch (err) {
+                console.error("Webcam Error:", err);
+                status.className = 'status inactive';
+                status.textContent = 'Failed to access camera. Make sure you use HTTPS!';
+                alert("Could not access webcam. Ensure permission is granted and you are using HTTPS.");
+            }
         }
 
         function stopCamera() {
             if (!isStreaming) return;
             
+            isStreaming = false;
+            
+            // Stop processing loops
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            
+            // Turn off webcam hardware light
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            
             const videoFeed = document.getElementById('videoFeed');
             const status = document.getElementById('status');
             
             videoFeed.src = '';
-            isStreaming = false;
             status.className = 'status inactive';
             status.textContent = 'Camera inactive';
+        }
+
+        async function sendFramesLoop() {
+            if (!isStreaming) return;
+
+            const videoElement = document.getElementById('hiddenVideo');
+            const videoFeed = document.getElementById('videoFeed');
+
+            // Wait for video metadata to populate frame sizes
+            if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                
+                // Draw current frame to an invisible in-memory canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                
+                // Convert frame canvas to JPEG blob
+                canvas.toBlob(async (blob) => {
+                    if (!blob || !isStreaming) return;
+                    
+                    const formData = new FormData();
+                    formData.append('file', blob, 'frame.jpg');
+                    
+                    try {
+                        // Send the frame image file directly to the /detect API
+                        const response = await fetch(`${BASE_URL}/detect`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            // Extract raw image response bytes
+                            const imageBlob = await response.blob();
+                            
+                            // Revoke old URL to manage browser memory safely
+                            if (videoFeed.src.startsWith('blob:')) {
+                                URL.revokeObjectURL(videoFeed.src);
+                            }
+                            
+                            // Display the YOLO-annotated frame back to the screen
+                            videoFeed.src = URL.createObjectURL(imageBlob);
+                        }
+                    } catch (error) {
+                        console.error("Frame upload network failure:", error);
+                    }
+                    
+                    // Loop again on the next available browser animation frame tick
+                    if (isStreaming) {
+                        animationFrameId = requestAnimationFrame(sendFramesLoop);
+                    }
+                }, 'image/jpeg', 0.7); // 0.7 compression balances speed over quality for networking
+                
+            } else {
+                // Retry shortly if video element isn't fully ready yet
+                setTimeout(sendFramesLoop, 100);
+            }
         }
     </script>
 </body>
